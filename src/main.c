@@ -16,6 +16,7 @@
 #define NUM_KEYS 16
 #define VIEWPORT_WIDTH 64
 #define VIEWPORT_HEIGHT 32
+#define SPRITE_DATA_MEM_START 0
 
 struct chip8 {
     uint8_t mmap[MEMORY_SIZE], v[GENERAL_PURPOSE_REGS], keyboard[NUM_KEYS], display[
@@ -42,6 +43,10 @@ void op_ld_delay_timer(struct chip8 *chip_ate); // LD instruction -> loads delay
 void op_ld_kb_press(struct chip8 *chip_ate); // LD instruction -> loads pressed key into Vx
 void op_ld_delay_timer_val(struct chip8 *chip_ate); // LD instruction -> loads Vx into delay timer
 void op_ld_sound_timer_val(struct chip8 *chip_ate); // LD instruction -> loads Vx into sound timer
+void op_ld_index_sprite(struct chip8 *chip_ate); // LD instruction -> loads memory address of value of Vx into index register
+void op_ld_index_vx_bcd(struct chip8 *chip_ate); // LD instruction -> loads BCD representation of Vx into I, I+1, and I+2
+void op_ld_index_gen_regs(struct chip8 *chip_ate); // LD instruction -> loads v0 through vx into mmap[i..i+x]
+void op_ld_gen_regs_index(struct chip8 *chip_ate); // LD instruction -> loads mmap[i..i+x] into v0 through vx
 void op_add_wo_carry(struct chip8 *chip_ate); // ADD instruction -> Vx = Vx + kk
 void op_add_w_carry(struct chip8 *chip_ate); // ADD instruction -> Vx = Vx + kk and VF = carry
 void op_add_index(struct chip8 *chip_ate); // ADD instruction -> I = I + Vx
@@ -55,7 +60,7 @@ void op_shl(struct chip8 *chip_ate); // SHL instruction -> Vx*=2
 void op_rand(struct chip8 *chip_ate); // RND instruction -> Vx = rand(0,255) & kk
 void op_drw(struct chip8 *chip_ate); // DRW instruction -> display n-byte sprite starting at mem location I at (Vx, Vy), set VF = collision
 
-void init_sprite_data(struct chip8 *chip_ate, uint16_t mem_start);
+void init_sprite_data(struct chip8 *chip_ate);
 void update_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
 void draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface, int start_x, int start_y, const uint8_t sprite_bytes[], size_t num_sprite_bytes);
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col);
@@ -96,8 +101,9 @@ int main(int argc, char *args[]) {
     return 0;
 }
 
-void init_sprite_data(struct chip8 *chip_ate, uint16_t mem_start) {
+void init_sprite_data(struct chip8 *chip_ate) {
     // TODO: Do some assertion for mem-start value and ensure no spill over to idx 512 or above of mem
+    uint8_t mem_start = SPRITE_DATA_MEM_START;
     // Sprite Bytes for 0
     chip_ate->mmap[mem_start] = 0xF0;
     chip_ate->mmap[++mem_start] = 0x90;
@@ -362,6 +368,44 @@ void op_ld_delay_timer_val(struct chip8 *chip_ate) {
 void op_ld_sound_timer_val(struct chip8 *chip_ate) {
     uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
     chip_ate->sound_timer = chip_ate->v[x];
+}
+
+
+void op_ld_index_sprite(struct chip8 *chip_ate) {
+    uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
+    // Multiple by 5 since all symbols are 8x5 sprites
+    uint8_t sprite_start_addr = chip_ate->v[x] * 5;
+    chip_ate->index = chip_ate->mmap[sprite_start_addr];
+}
+
+void op_ld_index_vx_bcd(struct chip8 *chip_ate) {
+    uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
+    uint8_t vx = chip_ate->v[x];
+    // Init to 3 representing the hundredths place digit
+    size_t index_register_offset = 0;
+    uint8_t digit_place = 100;
+    while (vx != 0) {
+        chip_ate->mmap[chip_ate->index + index_register_offset] = (uint8_t)(vx / digit_place);
+        vx%=digit_place;
+        digit_place = (uint8_t) (digit_place / 10);
+        index_register_offset+=1;
+    }
+}
+
+void op_ld_index_gen_regs(struct chip8 *chip_ate) {
+    uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
+    // TODO: Is it an inclusive  for Vx as well?
+    for (size_t loop_idx=0; loop_idx < x+1; loop_idx+=1) {
+        chip_ate->mmap[chip_ate->index + loop_idx] = chip_ate->v[loop_idx];
+    }
+}
+
+void op_ld_gen_regs_index(struct chip8 *chip_ate) {
+    uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
+    // TODO: Is it an inclusive copy for Vx as well?
+    for (size_t loop_idx=0; loop_idx < x+1; loop_idx+=1) {
+        chip_ate->v[loop_idx] = chip_ate->mmap[chip_ate->index + loop_idx];
+    }
 }
 
 void op_add_wo_carry(struct chip8 *chip_ate) {
