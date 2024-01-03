@@ -24,6 +24,8 @@ struct chip8 {
     uint16_t pc, stack[STACK_DEPTH], opcode, index;
 };
 
+typedef void (*instruction)(struct chip8*);
+
 void op_sys(struct chip8 *chip_ate); // SYS instruction -> ignore
 void op_cls(struct chip8 *chip_ate); // CLS instruction -> clears the display
 void op_ret(struct chip8 *chip_ate); // RET instruction -> return from subroutine
@@ -61,11 +63,21 @@ void op_rand(struct chip8 *chip_ate); // RND instruction -> Vx = rand(0,255) & k
 void op_drw(struct chip8 *chip_ate); // DRW instruction -> display n-byte sprite starting at mem location I at (Vx, Vy), set VF = collision
 
 void init_sprite_data(struct chip8 *chip_ate);
+instruction opcode_to_instruction(uint16_t opcode);
 void update_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
 void draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface, int start_x, int start_y, const uint8_t sprite_bytes[], size_t num_sprite_bytes);
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col);
 
 int main(int argc, char *args[]) {
+    struct chip8 *chip_ate = {};
+    // Fetch-Decode-Execute cycle
+    while (true) {
+        // Fetch instruction which pc is pointing to
+        uint8_t pc_high = (chip_ate->pc & 0xFF00) >> 8; 
+        uint8_t pc_low = (chip_ate->pc & 0x00FF); 
+        uint16_t fetched_op = (chip_ate->mmap[pc_high] << 8) + chip_ate->mmap[pc_low];
+    }
+
     SDL_Window *window = NULL;
     SDL_Surface *screen_surface = NULL;
     // Init SDL
@@ -99,6 +111,55 @@ int main(int argc, char *args[]) {
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
+}
+
+instruction opcode_to_instruction(uint16_t opcode) {
+    switch (opcode) {
+        case 0x00E0: return &op_cls;
+        case 0x00EE: return &op_ret;
+        
+    }
+    switch (opcode & 0x1000) {
+        case 0x0000: return &op_sys;
+        case 0x1000: return &op_jp_nnn;
+        case 0x2000: return &op_call;
+        case 0x3000: return &op_skip_eq_kk;
+        case 0x4000: return &op_skip_neq_kk;
+        case 0x6000: return &op_ld_kk;
+        case 0x7000: return &op_add_wo_carry;
+        case 0xA000: return &op_ld_index;
+        case 0xB000: return &op_jp_nnn_v0;
+        case 0xC000: return &op_rand;
+        case 0xD000: return &op_drw;
+
+    }
+    switch (opcode & 0x1001) {
+        case 0x5000: return &op_skip_eq_vy;
+        case 0x8000: return &op_ld_vy;
+        case 0x8001: return &op_or;
+        case 0x8002: return &op_and;
+        case 0x8003: return &op_xor;
+        case 0x8004: return &op_add_w_carry;
+        case 0x8005: return &op_sub;
+        case 0x8006: return &op_shr;
+        case 0x8007: return &op_subn;
+        case 0x800E: return &op_shl;
+        case 0x9000: return &op_skip_neq_vy;
+    }
+
+    switch (opcode & 0x1011) {
+        case 0xE09E: return &op_skip_eq_kb;
+        case 0xE0A1: return &op_skip_neq_kb; 
+        case 0xF007: return &op_ld_delay_timer;
+        case 0xF00A: return &op_ld_kb_press;
+        case 0xF015: return &op_ld_delay_timer_val;
+        case 0xF018: return &op_ld_sound_timer_val;
+        case 0xF01E: return &op_add_index;
+        case 0xF029: return &op_ld_index_sprite;
+        case 0xF033: return &op_ld_index_vx_bcd;
+        case 0xF055: return &op_ld_index_gen_regs;
+        case 0xF065: return &op_ld_gen_regs_index;
+    }
 }
 
 void init_sprite_data(struct chip8 *chip_ate) {
