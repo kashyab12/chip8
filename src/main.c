@@ -70,12 +70,17 @@ size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t tw
 
 int main(int argc, char *args[]) {
     struct chip8 *chip_ate = {};
+    bool final_instruction = false;
     // Fetch-Decode-Execute cycle
-    while (true) {
-        // Fetch instruction which pc is pointing to
+    while (!final_instruction) {
+        // Fetch Step - instruction which pc is pointing to
         uint8_t pc_high = (chip_ate->pc & 0xFF00) >> 8; 
         uint8_t pc_low = (chip_ate->pc & 0x00FF); 
         uint16_t fetched_op = (chip_ate->mmap[pc_high] << 8) + chip_ate->mmap[pc_low];
+        // Decode Step - Obtain pointer to relevant instruction function 
+        instruction func = opcode_to_instruction(fetched_op);
+        // Execute Step - execute the relevant instruction
+        (*func)(chip_ate);
     }
 
     SDL_Window *window = NULL;
