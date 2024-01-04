@@ -360,7 +360,7 @@ void op_sys(struct chip8 *chip_ate) {
 }
 
 void op_cls(struct chip8 *chip_ate) {
-    memset(chip_ate->display, 1, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
+    memset(chip_ate->display, 0, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
 }
 
 void op_ret(struct chip8 *chip_ate) {
