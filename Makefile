@@ -14,8 +14,9 @@ LINKER_FLAGS = -lSDL2
 EXEC_NAME = chip8
 
 # Target to compile and produce exec
+# TODO: Cleanup via making debug build optional
 all: $(OBJS)
-	$(CC) $(OBJS) $(COMPILE_FLAGS) $(LINKER_FLAGS) -o $(EXEC_NAME)
+	$(CC) $(OBJS) $(COMPILE_FLAGS) $(LINKER_FLAGS) -o $(EXEC_NAME) -g
 
 clean:
 	rm ./$(EXEC_NAME)
