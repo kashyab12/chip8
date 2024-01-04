@@ -84,23 +84,25 @@ int main(int argc, char *args[]) {
         printf("Window creation failed!");
     }
     screen_surface = SDL_GetWindowSurface(window);
+    op_cls(chip_ate);
+    update_real_display(chip_ate, window, screen_surface);
     // TODO: Load .8o file here?
-    ld_instructions_file(chip_ate);
-    // TODO: Need to reference the PC to know when we are done? Or maybe return it from ld_instructions
-    bool final_instruction = false;
-    // Fetch-Decode-Execute cycle
-    while (!final_instruction) {
-        // Fetch Step - instruction which pc is pointing to
-        uint8_t pc_high = (chip_ate->pc & 0xFF00) >> 8; 
-        uint8_t pc_low = (chip_ate->pc & 0x00FF); 
-        uint16_t fetched_op = (chip_ate->mmap[pc_high] << 8) + chip_ate->mmap[pc_low];
-        // Decode Step - Obtain pointer to relevant instruction function 
-        instruction func = opcode_to_instruction(fetched_op);
-        // Execute Step - execute the relevant instruction
-        (*func)(chip_ate);
-        // TODO: Optimize to call when required!
-        update_real_display(chip_ate, window, screen_surface);
-    }
+    // ld_instructions_file(chip_ate);
+    // // TODO: Need to reference the PC to know when we are done? Or maybe return it from ld_instructions
+    // bool final_instruction = false;
+    // // Fetch-Decode-Execute cycle
+    // while (!final_instruction) {
+    //     // Fetch Step - instruction which pc is pointing to
+    //     uint8_t pc_high = (chip_ate->pc & 0xFF00) >> 8; 
+    //     uint8_t pc_low = (chip_ate->pc & 0x00FF); 
+    //     uint16_t fetched_op = (chip_ate->mmap[pc_high] << 8) + chip_ate->mmap[pc_low];
+    //     // Decode Step - Obtain pointer to relevant instruction function 
+    //     instruction func = opcode_to_instruction(fetched_op);
+    //     // Execute Step - execute the relevant instruction
+    //     (*func)(chip_ate);
+    //     // TODO: Optimize to call when required!
+    //     update_real_display(chip_ate, window, screen_surface);
+    // }
     // // Color the surface
     // int start_x = (int)(SCREEN_WIDTH / 2);
     // int start_y = (int)(SCREEN_HEIGHT / 2);
@@ -341,6 +343,10 @@ draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surf
 
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col) {
     return (twod_arr_max_rows * twod_row + twod_col);
+}
+
+void op_sys(struct chip8 *chip_ate) {
+    return;
 }
 
 void op_cls(struct chip8 *chip_ate) {
@@ -593,4 +599,8 @@ void op_rand(struct chip8 *chip_ate) {
     uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
     uint8_t rand_num = rand() % 0xFF;
     chip_ate->v[x] = rand_num & kk;
+}
+
+void op_drw(struct chip8 *chip_ate) {
+    return;
 }
