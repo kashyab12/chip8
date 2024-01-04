@@ -66,7 +66,6 @@ void init_sprite_data(struct chip8 *chip_ate);
 void ld_instructions_file(const char* file_path, struct chip8 *chip_ate);
 instruction opcode_to_instruction(uint16_t opcode);
 void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
-void draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface, int start_x, int start_y, const uint8_t sprite_bytes[], size_t num_sprite_bytes);
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col);
 
 int main(int argc, char *args[]) {
@@ -109,7 +108,6 @@ int main(int argc, char *args[]) {
     // int start_y = (int)(SCREEN_HEIGHT / 2);
     // uint8_t zero_sprite[] = {0xF0, 0x90, 0x90, 0x90, 0xF0};
     // struct chip8 chip_ate;
-    // draw_sprite(&chip_ate, window, screen_surface, start_x, start_y, zero_sprite, 5);
 
     // Keeping the window up
     SDL_Event event;
@@ -307,48 +305,6 @@ void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface
         }
         scaled_y += pixel_height;
     } 
-}
-
-// Draft function - some of this behavior will be transferred to the DRW instruction
-void
-draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface, int start_x, int start_y, const uint8_t sprite_bytes[], size_t num_sprite_bytes) {
-    int current_x, current_y;
-    const int pixel_width = SCREEN_WIDTH / VIEWPORT_WIDTH;
-    const int pixel_height = SCREEN_HEIGHT / VIEWPORT_HEIGHT;
-    current_x = start_x;
-    current_y = start_y;
-    // TODO: Need to incorporate the display array via the chip_ate struct here
-    for (size_t idx = 0; idx < num_sprite_bytes; idx+=1) {
-        uint8_t sprite_byte = sprite_bytes[idx];
-        // TODO: Need to be using viewport height and width (64 x 32 is too small, so need to allow resizing?)
-        if (current_y >= SCREEN_HEIGHT) {
-            current_y %= SCREEN_HEIGHT;
-        }
-        // TODO: How would clipping occur if we are using modulo?
-        // Choosing 8 since every sprite will be a byte i.e 8 bits wide
-        short nth_bit = 7;
-        while (nth_bit >= 0) {
-            // Obtaining the individual bit
-            size_t nth_bit_val = (sprite_byte & ( 1 << nth_bit )) >> nth_bit;
-            // TODO: Need to be using viewport height and width (64 x 32 is too small, so need to allow resizing?)
-            if (current_x >= SCREEN_WIDTH) {
-                current_x %= SCREEN_WIDTH;
-            }
-            SDL_Rect pixel_fill_rect = { .x = current_x, .y = current_y, .w = pixel_width, .h = pixel_height};
-            if (nth_bit_val == 0) {
-                SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0x0, 0x0, 0x0));
-            } else {
-                SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0xFF, 0x00, 0xFF));
-            }
-            // Updating surface
-            // TODO: Perhaps call it after every drawing an entire sprite?
-            SDL_UpdateWindowSurface(window);
-            current_x += pixel_width;
-            nth_bit -= 1;
-        }
-        current_x = start_x;
-        current_y += pixel_height;
-    }
 }
 
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col) {
