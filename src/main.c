@@ -63,7 +63,7 @@ void op_rand(struct chip8 *chip_ate); // RND instruction -> Vx = rand(0,255) & k
 void op_drw(struct chip8 *chip_ate); // DRW instruction -> display n-byte sprite starting at mem location I at (Vx, Vy), set VF = collision
 
 void init_sprite_data(struct chip8 *chip_ate);
-void ld_instructions_file(const char* file_path);
+void ld_instructions_file(const char* file_path, struct chip8 *chip_ate);
 instruction opcode_to_instruction(uint16_t opcode);
 void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
 void draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface, int start_x, int start_y, const uint8_t sprite_bytes[], size_t num_sprite_bytes);
@@ -71,7 +71,7 @@ size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t tw
 
 int main(int argc, char *args[]) {
     // Initalizations - ChipAte and SDL
-    struct chip8 *chip_ate;
+    struct chip8 chip_ate;
     SDL_Window *window = NULL;
     SDL_Surface *screen_surface = NULL;
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -84,8 +84,9 @@ int main(int argc, char *args[]) {
         printf("Window creation failed!");
     }
     screen_surface = SDL_GetWindowSurface(window);
-    op_cls(chip_ate);
-    update_real_display(chip_ate, window, screen_surface);
+    ld_instructions_file("", &chip_ate);
+    op_cls(&chip_ate);
+    update_real_display(&chip_ate, window, screen_surface);
     // TODO: Load .8o file here?
     // ld_instructions_file(chip_ate);
     // // TODO: Need to reference the PC to know when we are done? Or maybe return it from ld_instructions
@@ -123,6 +124,14 @@ int main(int argc, char *args[]) {
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
+}
+
+void ld_instructions_file(const char* file_path, struct chip8 *chip_ate) {
+    memset(chip_ate->mmap, 0, MEMORY_SIZE);
+    memset(chip_ate->v, 0, GENERAL_PURPOSE_REGS);
+    memset(chip_ate->keyboard, 0, NUM_KEYS);
+    memset(chip_ate->display, 0, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
+    memset(chip_ate->stack, 0, STACK_DEPTH);
 }
 
 instruction opcode_to_instruction(uint16_t opcode) {
@@ -293,6 +302,7 @@ void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface
                 // Should not happen!
                 abort();
             }
+            SDL_UpdateWindowSurface(window);
             scaled_x += pixel_width;
         }
         scaled_y += pixel_height;
@@ -328,7 +338,7 @@ draw_sprite(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surf
             if (nth_bit_val == 0) {
                 SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0x0, 0x0, 0x0));
             } else {
-                SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0xFF, 0xFF, 0xFF));
+                SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0xFF, 0x00, 0xFF));
             }
             // Updating surface
             // TODO: Perhaps call it after every drawing an entire sprite?
@@ -350,9 +360,7 @@ void op_sys(struct chip8 *chip_ate) {
 }
 
 void op_cls(struct chip8 *chip_ate) {
-    for (size_t pixel_idx=0; pixel_idx < VIEWPORT_WIDTH * VIEWPORT_HEIGHT; pixel_idx+=1) {
-        chip_ate->display[pixel_idx] = 0;
-    }
+    memset(chip_ate->display, 1, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
 }
 
 void op_ret(struct chip8 *chip_ate) {
@@ -547,7 +555,7 @@ void op_and(struct chip8 *chip_ate) {
 void op_xor(struct chip8 *chip_ate) {
     uint8_t y = (chip_ate->opcode & 0x00F0) >> 4;
     uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
-    chip_ate->v[x]&=chip_ate->v[y];
+    chip_ate->v[x]^=chip_ate->v[y];
 }
 
 void op_sub(struct chip8 *chip_ate) {
@@ -602,5 +610,33 @@ void op_rand(struct chip8 *chip_ate) {
 }
 
 void op_drw(struct chip8 *chip_ate) {
-    return;
+    uint8_t n = (chip_ate->opcode & 0x000F);
+    uint8_t x = (chip_ate->opcode & 0x00F0) >> 4;
+    uint8_t y = (chip_ate->opcode & 0x0F00) >> 8;
+    uint16_t start_mem_idx = chip_ate->index;
+    int current_y = chip_ate->v[y];
+    for (size_t idx = 0; idx < n; idx+=1) {
+        int current_x = chip_ate->v[x];
+        uint8_t sprite_byte = chip_ate->mmap[start_mem_idx + idx];
+        if (current_y >= VIEWPORT_HEIGHT) {
+            current_y %= VIEWPORT_HEIGHT;
+        }
+        // Choosing 8 since every sprite will be a byte i.e 8 bits wide
+        short nth_bit = 7;
+        while (nth_bit >= 0) {
+            // Obtaining the individual bit
+            uint8_t pixel_color_val = (sprite_byte & ( 1 << nth_bit )) >> nth_bit;
+            if (current_x >= VIEWPORT_WIDTH) {
+                current_x %= VIEWPORT_WIDTH;
+            }
+            size_t oned_idx = twod_to_oned_arr_idx(VIEWPORT_HEIGHT, current_y, current_x);
+            if (chip_ate->display[oned_idx] ^ pixel_color_val == 1) {
+                chip_ate->v[0xF] = 1;
+                chip_ate->display[oned_idx] = pixel_color_val;
+            }
+            current_x += 1;
+            nth_bit -= 1;
+        }
+        current_y+=1;
+    }
 }
