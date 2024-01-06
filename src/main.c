@@ -93,11 +93,15 @@ int main(int argc, char *args[]) {
     // Fetch-Decode-Execute cycle
     while (true) {
         // Fetch Step - instruction which pc is pointing to
-        uint8_t pc_high = (chip_ate.pc & 0xFF00) >> 8; 
-        uint8_t pc_low = (chip_ate.pc & 0x00FF); 
-        uint16_t fetched_op = (chip_ate.mmap[pc_high] << 8) + chip_ate.mmap[pc_low];
+        // uint8_t pc_high = (chip_ate.pc & 0xFF00) >> 8; 
+        // uint8_t pc_low = (chip_ate.pc & 0x00FF); 
+        chip_ate.opcode = (chip_ate.mmap[chip_ate.pc] << 8) + chip_ate.mmap[chip_ate.pc + 1];
+        chip_ate.pc += 2;
         // Decode Step - Obtain pointer to relevant instruction function 
-        instruction func = opcode_to_instruction(fetched_op);
+        instruction func = opcode_to_instruction(chip_ate.opcode);
+        if (func == NULL) {
+            abort(); // Something is wrong!
+        }
         // Execute Step - execute the relevant instruction
         (*func)(&chip_ate);
         // TODO: Optimize to call when required!
@@ -122,6 +126,8 @@ int main(int argc, char *args[]) {
 void ld_instructions_file(const char* file_path, struct chip8 *chip_ate) {
     FILE *f_ptr = fopen(file_path, "rb");
     fread((chip_ate->mmap + 0x200), 1, MAX_PROG_SIZE, f_ptr);
+    // Set the PC to the start of the program
+    chip_ate->pc = 0x200;
     memset(chip_ate->v, 0, GENERAL_PURPOSE_REGS);
     memset(chip_ate->keyboard, 0, NUM_KEYS);
     memset(chip_ate->display, 0, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
@@ -129,12 +135,13 @@ void ld_instructions_file(const char* file_path, struct chip8 *chip_ate) {
 }
 
 instruction opcode_to_instruction(uint16_t opcode) {
+    // Exact Match Case
     switch (opcode) {
         case 0x00E0: return &op_cls;
         case 0x00EE: return &op_ret;
-        
+        default: break;
     }
-    switch (opcode & 0x1000) {
+    switch (opcode & 0xF000) {
         case 0x0000: return &op_sys;
         case 0x1000: return &op_jp_nnn;
         case 0x2000: return &op_call;
@@ -146,9 +153,9 @@ instruction opcode_to_instruction(uint16_t opcode) {
         case 0xB000: return &op_jp_nnn_v0;
         case 0xC000: return &op_rand;
         case 0xD000: return &op_drw;
-
+        default: break;
     }
-    switch (opcode & 0x1001) {
+    switch (opcode & 0xF00F) {
         case 0x5000: return &op_skip_eq_vy;
         case 0x8000: return &op_ld_vy;
         case 0x8001: return &op_or;
@@ -160,9 +167,10 @@ instruction opcode_to_instruction(uint16_t opcode) {
         case 0x8007: return &op_subn;
         case 0x800E: return &op_shl;
         case 0x9000: return &op_skip_neq_vy;
+        default: break;
     }
 
-    switch (opcode & 0x1011) {
+    switch (opcode & 0xF0FF) {
         case 0xE09E: return &op_skip_eq_kb;
         case 0xE0A1: return &op_skip_neq_kb; 
         case 0xF007: return &op_ld_delay_timer;
@@ -174,6 +182,7 @@ instruction opcode_to_instruction(uint16_t opcode) {
         case 0xF033: return &op_ld_index_vx_bcd;
         case 0xF055: return &op_ld_index_gen_regs;
         case 0xF065: return &op_ld_gen_regs_index;
+        default: break;
     }
     return NULL;
 }
