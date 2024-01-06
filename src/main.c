@@ -17,6 +17,8 @@
 #define VIEWPORT_WIDTH 64
 #define VIEWPORT_HEIGHT 32
 #define SPRITE_DATA_MEM_START 0
+// Amount of space reserved for CHIP8 programs and data according to memory diagram
+#define MAX_PROG_SIZE 133 // bytes
 
 struct chip8 {
     uint8_t mmap[MEMORY_SIZE], v[GENERAL_PURPOSE_REGS], keyboard[NUM_KEYS], display[
@@ -83,32 +85,25 @@ int main(int argc, char *args[]) {
         printf("Window creation failed!");
     }
     screen_surface = SDL_GetWindowSurface(window);
-    ld_instructions_file("", &chip_ate);
-    op_cls(&chip_ate);
-    update_real_display(&chip_ate, window, screen_surface);
     // TODO: Load .8o file here?
-    // ld_instructions_file(chip_ate);
-    // // TODO: Need to reference the PC to know when we are done? Or maybe return it from ld_instructions
+    // TODO: Accept as command line arg or part of some config
+    ld_instructions_file("./tests/ibm.ch8", &chip_ate);
+    // TODO: Need to reference the PC to know when we are done? Or maybe return it from ld_instructions
     // bool final_instruction = false;
-    // // Fetch-Decode-Execute cycle
-    // while (!final_instruction) {
-    //     // Fetch Step - instruction which pc is pointing to
-    //     uint8_t pc_high = (chip_ate->pc & 0xFF00) >> 8; 
-    //     uint8_t pc_low = (chip_ate->pc & 0x00FF); 
-    //     uint16_t fetched_op = (chip_ate->mmap[pc_high] << 8) + chip_ate->mmap[pc_low];
-    //     // Decode Step - Obtain pointer to relevant instruction function 
-    //     instruction func = opcode_to_instruction(fetched_op);
-    //     // Execute Step - execute the relevant instruction
-    //     (*func)(chip_ate);
-    //     // TODO: Optimize to call when required!
-    //     update_real_display(chip_ate, window, screen_surface);
-    // }
-    // // Color the surface
-    // int start_x = (int)(SCREEN_WIDTH / 2);
-    // int start_y = (int)(SCREEN_HEIGHT / 2);
-    // uint8_t zero_sprite[] = {0xF0, 0x90, 0x90, 0x90, 0xF0};
-    // struct chip8 chip_ate;
-
+    // Fetch-Decode-Execute cycle
+    while (true) {
+        // Fetch Step - instruction which pc is pointing to
+        uint8_t pc_high = (chip_ate.pc & 0xFF00) >> 8; 
+        uint8_t pc_low = (chip_ate.pc & 0x00FF); 
+        uint16_t fetched_op = (chip_ate.mmap[pc_high] << 8) + chip_ate.mmap[pc_low];
+        // Decode Step - Obtain pointer to relevant instruction function 
+        instruction func = opcode_to_instruction(fetched_op);
+        // Execute Step - execute the relevant instruction
+        (*func)(&chip_ate);
+        // TODO: Optimize to call when required!
+        update_real_display(&chip_ate, window, screen_surface);
+    }
+    uint8_t zero_sprite[] = {0xF0, 0x90, 0x90, 0x90, 0xF0};
     // Keeping the window up
     SDL_Event event;
     bool quit = false;
@@ -125,7 +120,8 @@ int main(int argc, char *args[]) {
 }
 
 void ld_instructions_file(const char* file_path, struct chip8 *chip_ate) {
-    memset(chip_ate->mmap, 0, MEMORY_SIZE);
+    FILE *f_ptr = fopen(file_path, "rb");
+    fread((chip_ate->mmap + 0x200), 1, MAX_PROG_SIZE, f_ptr);
     memset(chip_ate->v, 0, GENERAL_PURPOSE_REGS);
     memset(chip_ate->keyboard, 0, NUM_KEYS);
     memset(chip_ate->display, 0, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
