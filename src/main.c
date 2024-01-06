@@ -128,6 +128,7 @@ void ld_instructions_file(const char* file_path, struct chip8 *chip_ate) {
     fread((chip_ate->mmap + 0x200), 1, MAX_PROG_SIZE, f_ptr);
     // Set the PC to the start of the program
     chip_ate->pc = 0x200;
+    init_sprite_data(chip_ate);
     memset(chip_ate->v, 0, GENERAL_PURPOSE_REGS);
     memset(chip_ate->keyboard, 0, NUM_KEYS);
     memset(chip_ate->display, 0, VIEWPORT_HEIGHT * VIEWPORT_WIDTH);
