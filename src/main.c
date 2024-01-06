@@ -179,6 +179,7 @@ instruction opcode_to_instruction(uint16_t opcode) {
         case 0xF055: return &op_ld_index_gen_regs;
         case 0xF065: return &op_ld_gen_regs_index;
     }
+    return NULL;
 }
 
 void init_sprite_data(struct chip8 *chip_ate) {

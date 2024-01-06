@@ -9,7 +9,7 @@ A simple first emulator! Following the references below for the implementation:
 Follow me working on this live: "[emudev - chip8](https://www.youtube.com/watch?v=9Zi7X2YB_Is&list=PLUjxEbbWODdNA5sLttq8u1X5EA7lIa3M7)".
 
 ### todos
-- [ ] Ensure drawing is working correctly and complete implementation of `Dxyn`. Ensure chip8 struct display which we cache syncs it's state with actual display.
+- [x] Ensure drawing is working correctly and complete implementation of `Dxyn`. Ensure chip8 struct display which we cache syncs it's state with actual display.
  - [ ] Figure out loading of instruction file. According to sources, seems to be of `.8o` format. However, where are the list of tokens specified?
  - [ ] Audio i.e. producing tones in accordance with the sound timer and delay timer.
  - [ ] small todos and optimizations (some mentioned within main.c)  
