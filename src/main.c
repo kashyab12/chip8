@@ -70,6 +70,7 @@ instruction opcode_to_instruction(uint16_t opcode);
 void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col);
 
+// TODO: Switch to local variable later
 SDL_Window *window = NULL;
 SDL_Surface *screen_surface = NULL;
 
@@ -595,7 +596,5 @@ void op_drw(struct chip8 *chip_ate) {
             nth_bit -= 1;
         }
         current_y+=1;
-        // Testing purposes
-        update_real_display(chip_ate, window, screen_surface);
     }
 }
