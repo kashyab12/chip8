@@ -70,17 +70,18 @@ instruction opcode_to_instruction(uint16_t opcode);
 void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col);
 
+SDL_Window *window = NULL;
+SDL_Surface *screen_surface = NULL;
+
 int main(int argc, char *args[]) {
     // Initalizations - ChipAte and SDL
     struct chip8 chip_ate;
-    SDL_Window *window = NULL;
-    SDL_Surface *screen_surface = NULL;
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("Init didn't work!");
+    printf("Init didn't work!");
     }
     const char *title = "Test out SDL";
     window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT,
-                              SDL_WINDOW_SHOWN);
+                                SDL_WINDOW_SHOWN);
     if (window == NULL) {
         printf("Window creation failed!");
     }
@@ -572,24 +573,20 @@ void op_rand(struct chip8 *chip_ate) {
 
 void op_drw(struct chip8 *chip_ate) {
     uint8_t n = (chip_ate->opcode & 0x000F);
-    uint8_t x = (chip_ate->opcode & 0x00F0) >> 4;
-    uint8_t y = (chip_ate->opcode & 0x0F00) >> 8;
+    uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
+    uint8_t y = (chip_ate->opcode & 0x00F0) >> 4;
     uint16_t start_mem_idx = chip_ate->index;
     int current_y = chip_ate->v[y];
     for (size_t idx = 0; idx < n; idx+=1) {
         int current_x = chip_ate->v[x];
         uint8_t sprite_byte = chip_ate->mmap[start_mem_idx + idx];
-        if (current_y >= VIEWPORT_HEIGHT) {
-            current_y %= VIEWPORT_HEIGHT;
-        }
+        current_y %= VIEWPORT_HEIGHT;
         // Choosing 8 since every sprite will be a byte i.e 8 bits wide
         short nth_bit = 7;
         while (nth_bit >= 0) {
             // Obtaining the individual bit
             uint8_t pixel_color_val = (sprite_byte & ( 1 << nth_bit )) >> nth_bit;
-            if (current_x >= VIEWPORT_WIDTH) {
-                current_x %= VIEWPORT_WIDTH;
-            }
+            current_x %= VIEWPORT_WIDTH;
             if (chip_ate->display[current_x][current_y] ^ pixel_color_val == 1) {
                 chip_ate->v[0xF] = 1;
                 chip_ate->display[current_x][current_y] = pixel_color_val;
@@ -598,5 +595,7 @@ void op_drw(struct chip8 *chip_ate) {
             nth_bit -= 1;
         }
         current_y+=1;
+        // Testing purposes
+        update_real_display(chip_ate, window, screen_surface);
     }
 }
