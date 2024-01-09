@@ -22,7 +22,7 @@
 
 struct chip8 {
     uint8_t mmap[MEMORY_SIZE], v[GENERAL_PURPOSE_REGS], keyboard[NUM_KEYS], display[
-            VIEWPORT_HEIGHT * VIEWPORT_WIDTH], sound_timer, delay_timer, sp;
+            VIEWPORT_WIDTH][VIEWPORT_HEIGHT], sound_timer, delay_timer, sp;
     uint16_t pc, stack[STACK_DEPTH], opcode, index;
 };
 
@@ -107,7 +107,6 @@ int main(int argc, char *args[]) {
         // TODO: Optimize to call when required!
         update_real_display(&chip_ate, window, screen_surface);
     }
-    uint8_t zero_sprite[] = {0xF0, 0x90, 0x90, 0x90, 0xF0};
     // Keeping the window up
     SDL_Event event;
     bool quit = false;
@@ -296,8 +295,7 @@ void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface
     for (size_t row_idx=0; row_idx < VIEWPORT_HEIGHT; row_idx+=1) {
         size_t scaled_x = 0;
         for (size_t col_idx=0; col_idx < VIEWPORT_WIDTH; col_idx+=1) {
-            size_t oned_idx = twod_to_oned_arr_idx(VIEWPORT_HEIGHT, row_idx, col_idx);
-            uint8_t color_val = chip_ate->display[oned_idx];
+            uint8_t color_val = chip_ate->display[col_idx][row_idx];
             SDL_Rect pixel_fill_rect = { .x = scaled_x, .y = scaled_y, .w = pixel_width, .h = pixel_height};
             if (color_val == 0) {
                 SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0x0, 0x0, 0x0));
@@ -592,10 +590,9 @@ void op_drw(struct chip8 *chip_ate) {
             if (current_x >= VIEWPORT_WIDTH) {
                 current_x %= VIEWPORT_WIDTH;
             }
-            size_t oned_idx = twod_to_oned_arr_idx(VIEWPORT_HEIGHT, current_y, current_x);
-            if (chip_ate->display[oned_idx] ^ pixel_color_val == 1) {
+            if (chip_ate->display[current_x][current_y] ^ pixel_color_val == 1) {
                 chip_ate->v[0xF] = 1;
-                chip_ate->display[oned_idx] = pixel_color_val;
+                chip_ate->display[current_x][current_y] = pixel_color_val;
             }
             current_x += 1;
             nth_bit -= 1;
