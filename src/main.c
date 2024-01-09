@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 // Constants
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 640
 #define MEMORY_SIZE 4096
 #define GENERAL_PURPOSE_REGS 16
 #define STACK_DEPTH 16
