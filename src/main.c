@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 // Constants
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 640
 #define MEMORY_SIZE 4096
 #define GENERAL_PURPOSE_REGS 16
 #define STACK_DEPTH 16
@@ -22,7 +22,7 @@
 
 struct chip8 {
     uint8_t mmap[MEMORY_SIZE], v[GENERAL_PURPOSE_REGS], keyboard[NUM_KEYS], display[
-            VIEWPORT_HEIGHT * VIEWPORT_WIDTH], sound_timer, delay_timer, sp;
+            VIEWPORT_WIDTH][VIEWPORT_HEIGHT], sound_timer, delay_timer, sp;
     uint16_t pc, stack[STACK_DEPTH], opcode, index;
 };
 
@@ -70,17 +70,19 @@ instruction opcode_to_instruction(uint16_t opcode);
 void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface *screen_surface); // Update the SDL display as per what's held in the chip8 display array
 size_t twod_to_oned_arr_idx(size_t twod_arr_max_rows, size_t twod_row, size_t twod_col);
 
+// TODO: Switch to local variable later
+SDL_Window *window = NULL;
+SDL_Surface *screen_surface = NULL;
+
 int main(int argc, char *args[]) {
     // Initalizations - ChipAte and SDL
     struct chip8 chip_ate;
-    SDL_Window *window = NULL;
-    SDL_Surface *screen_surface = NULL;
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("Init didn't work!");
+    printf("Init didn't work!");
     }
     const char *title = "Test out SDL";
     window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT,
-                              SDL_WINDOW_SHOWN);
+                                SDL_WINDOW_SHOWN);
     if (window == NULL) {
         printf("Window creation failed!");
     }
@@ -107,7 +109,6 @@ int main(int argc, char *args[]) {
         // TODO: Optimize to call when required!
         update_real_display(&chip_ate, window, screen_surface);
     }
-    uint8_t zero_sprite[] = {0xF0, 0x90, 0x90, 0x90, 0xF0};
     // Keeping the window up
     SDL_Event event;
     bool quit = false;
@@ -296,8 +297,7 @@ void update_real_display(struct chip8 *chip_ate, SDL_Window* window, SDL_Surface
     for (size_t row_idx=0; row_idx < VIEWPORT_HEIGHT; row_idx+=1) {
         size_t scaled_x = 0;
         for (size_t col_idx=0; col_idx < VIEWPORT_WIDTH; col_idx+=1) {
-            size_t oned_idx = twod_to_oned_arr_idx(VIEWPORT_HEIGHT, row_idx, col_idx);
-            uint8_t color_val = chip_ate->display[oned_idx];
+            uint8_t color_val = chip_ate->display[col_idx][row_idx];
             SDL_Rect pixel_fill_rect = { .x = scaled_x, .y = scaled_y, .w = pixel_width, .h = pixel_height};
             if (color_val == 0) {
                 SDL_FillRect(screen_surface, &pixel_fill_rect, SDL_MapRGB(screen_surface->format, 0x0, 0x0, 0x0));
@@ -574,28 +574,23 @@ void op_rand(struct chip8 *chip_ate) {
 
 void op_drw(struct chip8 *chip_ate) {
     uint8_t n = (chip_ate->opcode & 0x000F);
-    uint8_t x = (chip_ate->opcode & 0x00F0) >> 4;
-    uint8_t y = (chip_ate->opcode & 0x0F00) >> 8;
+    uint8_t x = (chip_ate->opcode & 0x0F00) >> 8;
+    uint8_t y = (chip_ate->opcode & 0x00F0) >> 4;
     uint16_t start_mem_idx = chip_ate->index;
     int current_y = chip_ate->v[y];
     for (size_t idx = 0; idx < n; idx+=1) {
         int current_x = chip_ate->v[x];
         uint8_t sprite_byte = chip_ate->mmap[start_mem_idx + idx];
-        if (current_y >= VIEWPORT_HEIGHT) {
-            current_y %= VIEWPORT_HEIGHT;
-        }
+        current_y %= VIEWPORT_HEIGHT;
         // Choosing 8 since every sprite will be a byte i.e 8 bits wide
         short nth_bit = 7;
         while (nth_bit >= 0) {
             // Obtaining the individual bit
             uint8_t pixel_color_val = (sprite_byte & ( 1 << nth_bit )) >> nth_bit;
-            if (current_x >= VIEWPORT_WIDTH) {
-                current_x %= VIEWPORT_WIDTH;
-            }
-            size_t oned_idx = twod_to_oned_arr_idx(VIEWPORT_HEIGHT, current_y, current_x);
-            if (chip_ate->display[oned_idx] ^ pixel_color_val == 1) {
+            current_x %= VIEWPORT_WIDTH;
+            if (chip_ate->display[current_x][current_y] ^ pixel_color_val == 1) {
                 chip_ate->v[0xF] = 1;
-                chip_ate->display[oned_idx] = pixel_color_val;
+                chip_ate->display[current_x][current_y] = pixel_color_val;
             }
             current_x += 1;
             nth_bit -= 1;
